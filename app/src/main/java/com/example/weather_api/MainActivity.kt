@@ -18,17 +18,20 @@ import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
+import com.example.weather_api.models.WeatherResponse
+import com.example.weather_api.network.WeatherService
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
+import retrofit2.*
+import retrofit2.converter.gson.GsonConverterFactory
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -57,6 +60,7 @@ class MainActivity : AppCompatActivity() {
                   Manifest.permission.ACCESS_COARSE_LOCATION
               )
               .withListener(object : MultiplePermissionsListener{
+                  @RequiresApi(Build.VERSION_CODES.S)
                   override fun onPermissionsChecked(report: MultiplePermissionsReport?) {
                       if (report!!.areAllPermissionsGranted()){
                           requestLocationData()
@@ -81,6 +85,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
     private fun requestLocationData(){
         val mLocationRequest = com.google.android.gms.location.LocationRequest()
@@ -99,6 +104,62 @@ class MainActivity : AppCompatActivity() {
             Log.i("Current Lattitude", "$latitude")
             val longitude = mLastLocation?.longitude
             Log.i("Current Longitude", "$longitude")
+            if (latitude != null) {
+                if (longitude != null) {
+                    getLocationWeatherDetails(latitude, longitude)
+                }
+            }
+        }
+    }
+
+    private fun getLocationWeatherDetails(latitude: Double, longitude: Double){
+        if (Constants.isNetworkAvailable(this)){
+            val retrofit : Retrofit = Retrofit.Builder()
+                .baseUrl(Constants.BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+
+            val service : WeatherService = retrofit.create<WeatherService>(WeatherService::class.java)
+            val listCall : Call<WeatherResponse> = service.getWeather(
+                latitude, longitude, Constants.METRIC_UNIT, Constants.APP_ID
+            )
+            listCall.enqueue(object : Callback<WeatherResponse>{
+                override fun onResponse(
+                    call: Call<WeatherResponse>,
+                    response: Response<WeatherResponse>
+                ) {
+                    if (response!!.isSuccessful){
+                        val weatherList: WeatherResponse? = response.body()
+                        Log.i("Response Result", "$weatherList")
+                    }else{
+                      val rc = response.code()
+                      when(rc){
+                          400 -> {
+                              Log.e("Error 400","Bad Connection")
+                          }
+                          404 ->{
+                              Log.e("Error 404","Not Found")
+                          }else -> {
+                              Log.e("Error","Generic Error")
+                          }
+                      }
+                    }
+                }
+
+                override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
+                    Log.e("Error", t!!.message.toString())
+                }
+
+
+            })
+
+
+        }else{
+            Toast.makeText(
+                this@MainActivity,
+                "No internet connection available.",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
     private fun showRationalDialogForPermissions(){
