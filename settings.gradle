@@ -10,8 +10,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        gradlePluginPortal()
-        maven { url 'https://maven.google.com' }
+      //  gradlePluginPortal()
+      //  maven { url 'https://maven.google.com' }
 
     }
 }

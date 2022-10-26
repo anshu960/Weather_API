@@ -2,6 +2,7 @@ package com.example.weather_api
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -29,13 +30,17 @@ import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
-import retrofit2.*
-import retrofit2.converter.gson.GsonConverterFactory
+import retrofit.GsonConverterFactory
+import retrofit.Retrofit
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var mFusedLocationClient : FusedLocationProviderClient
+    private var mProgressDialog: Dialog?= null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -123,12 +128,20 @@ class MainActivity : AppCompatActivity() {
             val listCall : Call<WeatherResponse> = service.getWeather(
                 latitude, longitude, Constants.METRIC_UNIT, Constants.APP_ID
             )
-            listCall.enqueue(object : Callback<WeatherResponse>{
+            showCustomProgressDialog()
+            listCall.enqueue(object : Callback<WeatherResponse> {
+                override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
+                    Log.e("Error", t!!.message.toString())
+                    hideProgressDialog()
+                }
                 override fun onResponse(
                     call: Call<WeatherResponse>,
                     response: Response<WeatherResponse>
                 ) {
                     if (response!!.isSuccessful){
+
+                        hideProgressDialog()
+
                         val weatherList: WeatherResponse? = response.body()
                         Log.i("Response Result", "$weatherList")
                     }else{
@@ -144,10 +157,6 @@ class MainActivity : AppCompatActivity() {
                           }
                       }
                     }
-                }
-
-                override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
-                    Log.e("Error", t!!.message.toString())
                 }
 
 
@@ -190,6 +199,16 @@ class MainActivity : AppCompatActivity() {
             getSystemService(Context.LOCATION_SERVICE) as LocationManager
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
                 || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
+    private fun showCustomProgressDialog(){
+        mProgressDialog = Dialog(this)
+        mProgressDialog!!.setContentView(R.layout.dialog_custom_progress)
+        mProgressDialog!!.show()
+    }
+    private fun hideProgressDialog(){
+        if (mProgressDialog != null){
+            mProgressDialog!!.dismiss()
+        }
     }
 }
 
